@@ -65,22 +65,29 @@ DATABASE_URL=uploads/app.db
 
 # LLM 엔진 (vLLM only)
 LLM_ENGINE=vllm
-VLLM_BASE_URL=http://vllm_gpt:8000
+VLLM_BASE_URL=http://vllm_gpt:8000  # Docker 환경에 맞게 수정
 VLLM_MODEL_NAME=openai/gpt-oss-20b
 
 # Qdrant
-QDRANT_HOST=localhost
-QDRANT_PORT=6333
+QDRANT_HOST=localhost  # Docker 환경에 맞게 수정
+QDRANT_PORT=6333       # Docker 환경에 맞게 수정
 
 # 임베딩
 EMBEDDING_MODEL=jhgan/ko-sroberta-multitask
 EMBEDDING_DEVICE=cpu
 ```
 
-### 3. vLLM 컨테이너 실행
+**💡 팁**:
+- Docker 네트워크 내에서 실행 시: `VLLM_BASE_URL=http://vllm_gpt:8000` (컨테이너 이름)
+- 호스트에서 실행 시: `VLLM_BASE_URL=http://localhost:8000`
+- 포트는 본인의 Docker 설정에 맞게 조정하세요.
 
+### 3. Docker 서비스 준비
+
+이 프로젝트는 다음 Docker 컨테이너들이 **사전에 실행 중이어야 합니다**:
+
+#### vLLM 컨테이너 (예시)
 ```bash
-# Docker로 vLLM 서버 실행 (GPU 필요)
 docker run -d --gpus all \
   -v ~/.cache/huggingface:/root/.cache/huggingface \
   -p 8000:8000 \
@@ -90,17 +97,20 @@ docker run -d --gpus all \
   --max-model-len 8192
 ```
 
-### 4. Qdrant 서비스 시작
-
+#### Qdrant 컨테이너 (예시)
 ```bash
-# Docker로 Qdrant 실행
 docker run -d -p 6333:6333 -p 6334:6334 \
   -v $(pwd)/uploads/qdrant_storage:/qdrant/storage \
   --name qdrant \
   qdrant/qdrant
 ```
 
-### 5. 서버 실행
+**⚠️ 주의**:
+- 위 예시는 참고용입니다. 실제 포트와 호스트명은 **여러분의 Docker 환경에 맞게 조정**하세요.
+- `.env` 파일에서 `VLLM_BASE_URL`, `QDRANT_HOST`, `QDRANT_PORT`를 본인의 Docker 네트워크 설정에 맞게 변경하세요.
+- Docker 네트워크 내에서 실행하는 경우 `localhost` 대신 컨테이너 이름을 사용할 수 있습니다.
+
+### 4. 서버 실행
 
 ```bash
 # 개발 모드
@@ -209,12 +219,21 @@ uploads/pdfs/건축시공학(개정판).pdf
 uploads/pdfs/7c172725-ec67-41d9-b468-37e2c6180086.pdf
 ```
 
-### 2. vLLM 필수
+### 2. Docker 서비스 필수
 
-이 시스템은 **vLLM Docker 컨테이너가 필수**입니다:
+이 시스템은 다음 **Docker 컨테이너들이 사전 실행 중이어야** 합니다:
+
+**vLLM**:
 - GPU 환경 필요 (CUDA)
-- 포트 8000에서 실행
-- 사전에 컨테이너를 시작해야 API 호출 가능
+- 기본 포트: 8000 (환경에 맞게 조정)
+- OpenAI API 호환 엔드포인트 제공
+
+**Qdrant**:
+- 벡터 DB 서비스
+- 기본 포트: 6333 (환경에 맞게 조정)
+- 시맨틱 검색용
+
+**환경 설정**: `.env` 파일에서 본인의 Docker 네트워크 설정에 맞게 호스트명과 포트를 변경하세요.
 
 ### 3. 건축시공학 데이터 범위
 
