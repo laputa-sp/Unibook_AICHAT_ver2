@@ -18,7 +18,7 @@ PDF 교재를 AI와 대화하며 학습할 수 있는 시스템입니다. 질문
 ## 🏗️ 기술 스택
 
 - **백엔드**: Python 3.8+ FastAPI
-- **LLM**: vLLM + Ollama (Dual Engine with Fallback)
+- **LLM**: vLLM (Docker 컨테이너)
 - **모델**: gpt-oss:20b
 - **DB**: SQLite + FTS5 전문 검색
 - **벡터 DB**: Qdrant (시맨틱 검색)
@@ -29,11 +29,11 @@ PDF 교재를 AI와 대화하며 학습할 수 있는 시스템입니다. 질문
 ## 📦 포함된 교재 데이터
 
 - **건축시공학(개정판)** (ISBN: 9788000000001)
-  - 568페이지, 42개 visual elements
+  - 1-50페이지 (테스트 데이터), 42개 visual elements
   - TOC 구조화, FTS5 인덱싱 완료
 
 - **목조건축 개론** (ISBN: 9788972955610)
-  - 95페이지
+  - 95페이지 (전체)
   - TOC 구조화, FTS5 인덱싱 완료
 
 ## 🚀 빠른 시작
@@ -63,18 +63,10 @@ PORT=7861
 # 데이터베이스
 DATABASE_URL=uploads/app.db
 
-# LLM 엔진
+# LLM 엔진 (vLLM only)
 LLM_ENGINE=vllm
-ENABLE_LLM_FALLBACK=true
-FALLBACK_ENGINE=ollama
-
-# vLLM (Docker)
 VLLM_BASE_URL=http://vllm_gpt:8000
 VLLM_MODEL_NAME=openai/gpt-oss-20b
-
-# Ollama (로컬)
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=gpt-oss:20b
 
 # Qdrant
 QDRANT_HOST=localhost
@@ -85,11 +77,17 @@ EMBEDDING_MODEL=jhgan/ko-sroberta-multitask
 EMBEDDING_DEVICE=cpu
 ```
 
-### 3. Ollama 모델 설치
+### 3. vLLM 컨테이너 실행
 
 ```bash
-# Ollama 설치 (https://ollama.ai)
-ollama pull gpt-oss:20b
+# Docker로 vLLM 서버 실행 (GPU 필요)
+docker run -d --gpus all \
+  -v ~/.cache/huggingface:/root/.cache/huggingface \
+  -p 8000:8000 \
+  --name vllm_gpt \
+  vllm/vllm-openai:latest \
+  --model openai/gpt-oss-20b \
+  --max-model-len 8192
 ```
 
 ### 4. Qdrant 서비스 시작
@@ -171,9 +169,10 @@ curl -X POST "http://localhost:7861/api/chat/v1/response/stream" \
 
 ### LLM 엔진
 
-시스템은 vLLM과 Ollama 두 엔진을 지원하며 자동 Fallback 기능이 있습니다:
-1. vLLM 우선 시도 (빠름)
-2. 실패 시 Ollama로 자동 전환 (안정적)
+시스템은 **vLLM**을 사용합니다:
+- Docker 컨테이너로 실행
+- GPU 가속 지원
+- OpenAI API 호환 인터페이스
 
 ### 캐싱 시스템
 
@@ -199,28 +198,28 @@ curl -X POST "http://localhost:7861/api/chat/v1/response/stream" \
 
 ## ⚠️ 주의사항
 
-### 목조건축 개론 PDF
+### 1. PDF 파일
 
-현재 DB에는 목조건축 개론 데이터가 포함되어 있지만, PDF 파일은 별도로 업로드해야 합니다:
+GitHub 용량 제한(100MB)으로 인해 PDF 원본 파일은 포함되어 있지 않습니다.
+**단, DB에 모든 텍스트 내용이 포함되어 있어 시스템 사용에는 문제 없습니다.**
 
+필요 시 다음 경로에 PDF 파일을 추가할 수 있습니다:
 ```bash
-# PDF 파일을 다음 경로에 배치
+uploads/pdfs/건축시공학(개정판).pdf
 uploads/pdfs/7c172725-ec67-41d9-b468-37e2c6180086.pdf
 ```
 
-### vLLM 사용
+### 2. vLLM 필수
 
-vLLM을 사용하려면 별도로 Docker 컨테이너를 실행해야 합니다:
+이 시스템은 **vLLM Docker 컨테이너가 필수**입니다:
+- GPU 환경 필요 (CUDA)
+- 포트 8000에서 실행
+- 사전에 컨테이너를 시작해야 API 호출 가능
 
-```bash
-docker run -d --gpus all \
-  -v ~/.cache/huggingface:/root/.cache/huggingface \
-  -p 8000:8000 \
-  --name vllm_gpt \
-  vllm/vllm-openai:latest \
-  --model openai/gpt-oss-20b \
-  --max-model-len 8192
-```
+### 3. 건축시공학 데이터 범위
+
+현재 건축시공학은 **1-50페이지만 테스트 데이터로 포함**되어 있습니다.
+전체 데이터가 필요한 경우 별도 처리가 필요합니다.
 
 ## 📄 라이선스
 
