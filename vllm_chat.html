@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF AI 챗봇 - vLLM 전용</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .engine-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid #64B5F6;
+        }
+
+        .main {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            height: calc(100vh - 200px);
+            min-height: 600px;
+        }
+
+        .sidebar {
+            background: #f8f9fa;
+            padding: 20px;
+            border-right: 1px solid #dee2e6;
+            overflow-y: auto;
+        }
+
+        .chat-area {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background: #ffffff;
+            min-height: 0;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            text-align: right;
+        }
+
+        .message-content {
+            display: inline-block;
+            max-width: 80%;
+            padding: 15px 20px;
+            border-radius: 18px;
+            text-align: left;
+            position: relative;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+        }
+
+        .message.assistant .message-content {
+            background: #f1f3f5;
+            color: #212529;
+            border-left: 4px solid #2196F3;
+        }
+
+        .message.system {
+            text-align: center;
+        }
+
+        .message.system .message-content {
+            background: #fff3cd;
+            color: #856404;
+            font-size: 13px;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: #6c757d;
+            margin-top: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .engine-indicator {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 8px;
+            background: #2196F3;
+            color: white;
+        }
+
+        .input-area {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            flex-shrink: 0;
+            max-height: 450px;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .form-group small {
+            display: block;
+            color: #6c757d;
+            font-size: 12px;
+            margin-top: 3px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            margin-top: 10px;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .info-box h3 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: #1976D2;
+        }
+
+        .info-box p {
+            font-size: 13px;
+            color: #495057;
+            line-height: 1.5;
+        }
+
+        .quick-questions {
+            margin-top: 20px;
+        }
+
+        .quick-questions h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        .quick-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            text-align: left;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-btn:hover {
+            background: #f8f9fa;
+            border-color: #2196F3;
+            transform: translateX(5px);
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .stats {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #dee2e6;
+        }
+
+        .stats-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .stats-label {
+            color: #6c757d;
+        }
+
+        .stats-value {
+            font-weight: 600;
+            color: #212529;
+        }
+
+        .vllm-stat-box {
+            background: #e3f2fd;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 3px solid #2196F3;
+            margin-top: 10px;
+        }
+
+        .stat-title {
+            font-size: 11px;
+            color: #1976D2;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1976D2;
+        }
+
+        .markdown-content {
+            line-height: 1.6;
+        }
+
+        .markdown-content h1,
+        .markdown-content h2,
+        .markdown-content h3 {
+            margin: 15px 0 10px;
+            color: #212529;
+        }
+
+        .markdown-content p {
+            margin: 10px 0;
+        }
+
+        .markdown-content ul,
+        .markdown-content ol {
+            margin: 10px 0;
+            padding-left: 25px;
+        }
+
+        .markdown-content li {
+            margin: 5px 0;
+        }
+
+        .markdown-content strong {
+            color: #495057;
+        }
+
+        .markdown-content code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 PDF AI 챗봇 - vLLM 전용</h1>
+            <p>성격심리학 - gpt-oss:20b (고성능 추론 엔진)</p>
+            <div class="engine-badge">
+                🟢 vLLM Engine
+            </div>
+        </div>
+
+        <div class="main">
+            <div class="sidebar">
+                <div class="info-box">
+                    <h3>📖 도서 선택</h3>
+                    <div class="form-group">
+                        <label>PDF 선택</label>
+                        <select id="pdfSelect" onchange="onPdfChange()">
+                            <option value="">도서를 선택하세요...</option>
+                        </select>
+                    </div>
+                    <div id="pdfInfo" style="margin-top: 10px; font-size: 13px; color: #6c757d;">
+                        도서를 선택하세요
+                    </div>
+                    <div id="sessionInfo" style="margin-top: 10px; padding: 8px; background: #e9ecef; border-radius: 5px; font-size: 11px; color: #495057;">
+                        <strong>세션 ID:</strong> <code id="sessionIdDisplay">-</code>
+                    </div>
+                </div>
+
+                <div class="stats">
+                    <div class="stats-item">
+                        <span class="stats-label">총 질문:</span>
+                        <span class="stats-value" id="totalQuestions">0</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="stats-label">평균 응답:</span>
+                        <span class="stats-value" id="avgTime">-</span>
+                    </div>
+                    <div class="stats-item">
+                        <span class="stats-label">마지막 응답:</span>
+                        <span class="stats-value" id="lastTime">-</span>
+                    </div>
+
+                    <div class="vllm-stat-box">
+                        <div class="stat-title">🟢 vLLM 평균 속도</div>
+                        <div class="stat-value" id="vllmAvg">-</div>
+                    </div>
+                </div>
+
+                <div class="quick-questions">
+                    <h3>💡 빠른 질문</h3>
+                    <button class="quick-btn" onclick="setQuestion('내향형과 외향형의 차이는?')">
+                        내향형 vs 외향형
+                    </button>
+                    <button class="quick-btn" onclick="setQuestion('MBTI가 뭐야?')">
+                        MBTI 설명
+                    </button>
+                    <button class="quick-btn" onclick="setQuestion('자기효능감이란?')">
+                        자기효능감
+                    </button>
+                    <button class="quick-btn" onclick="setQuestion('프로이트의 성격 이론을 설명해줘')">
+                        프로이트 이론
+                    </button>
+                </div>
+
+                <button class="btn btn-secondary" onclick="clearChat()">
+                    🗑️ 대화 초기화
+                </button>
+            </div>
+
+            <div class="chat-area">
+                <div class="messages" id="messages">
+                    <div class="message system">
+                        <div class="message-content">
+                            💬 vLLM 챗봇이 준비되었습니다. 도서를 선택하고 질문을 입력하세요.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-area">
+                    <div class="form-group">
+                        <label>📝 질문</label>
+                        <textarea id="query" placeholder="예: 한국어로 간단히 자기소개를 해주세요."></textarea>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="sendMessage()" id="sendBtn">
+                        🚀 질문하기
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let questionCount = 0;
+        let totalTime = 0;
+        let sessionId = 'test_' + Date.now();
+        const selectedEngine = 'vllm';  // vLLM 고정
+        let selectedPdf = null;
+        let pdfList = [];
+
+        // PDF 목록 로드
+        async function loadPdfList() {
+            try {
+                const response = await fetch('http://localhost:8080/api/pdf/list');
+                const data = await response.json();
+                pdfList = data.pdfs || [];
+
+                const select = document.getElementById('pdfSelect');
+                select.innerHTML = '<option value="">도서를 선택하세요...</option>';
+
+                let defaultIndex = -1;
+                pdfList.forEach((pdf, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = `${pdf.title} (${pdf.page_count}p)`;
+                    select.appendChild(option);
+
+                    // 성격심리학을 기본값으로
+                    if (pdf.isbn === '9791167070982') {
+                        defaultIndex = index;
+                    }
+                });
+
+                // 성격심리학 자동 선택
+                if (defaultIndex >= 0) {
+                    select.value = defaultIndex;
+                } else if (pdfList.length > 0) {
+                    select.value = 0;
+                }
+
+                if (select.value !== '') {
+                    onPdfChange();
+                }
+            } catch (error) {
+                console.error('PDF 목록 로드 실패:', error);
+                addMessage('system', '⚠️ PDF 목록을 불러오지 못했습니다.');
+            }
+        }
+
+        // PDF 선택 변경
+        function onPdfChange() {
+            const select = document.getElementById('pdfSelect');
+            const index = select.value;
+
+            if (index === '') {
+                selectedPdf = null;
+                document.getElementById('pdfInfo').innerHTML = '도서를 선택하세요';
+                document.getElementById('sessionIdDisplay').textContent = '-';
+                return;
+            }
+
+            selectedPdf = pdfList[index];
+
+            // 새 세션 시작
+            sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+            // 대화 초기화
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML = `
+                <div class="message system">
+                    <div class="message-content">
+                        💬 새로운 세션이 시작되었습니다.
+                    </div>
+                </div>
+                <div class="message assistant">
+                    <div class="message-content">
+                        🔄 AI 모델을 준비하고 있습니다... ✅ 준비 완료!<br><br>
+                        안녕하세요! **${selectedPdf.title}**에 대해 무엇이든 물어보세요. 😊
+                    </div>
+                </div>
+            `;
+
+            // 통계 초기화
+            questionCount = 0;
+            totalTime = 0;
+            document.getElementById('totalQuestions').textContent = '0';
+            document.getElementById('avgTime').textContent = '-';
+            document.getElementById('lastTime').textContent = '-';
+            document.getElementById('vllmAvg').textContent = '-';
+
+            // UI 업데이트
+            document.getElementById('pdfInfo').innerHTML = `
+                <strong>ISBN:</strong> ${selectedPdf.isbn}<br>
+                <strong>페이지:</strong> ${selectedPdf.page_count}p
+            `;
+            document.getElementById('sessionIdDisplay').textContent = sessionId;
+
+            addMessage('system', `📖 "${selectedPdf.title}" 선택됨`);
+            console.log('New session started:', sessionId, 'for PDF:', selectedPdf.title);
+        }
+
+        function addMessage(type, content, time = null) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            let timeStr = '';
+            if (time) {
+                const engineIndicator = '<span class="engine-indicator">vLLM</span>';
+                timeStr = `<div class="message-time"><span>⏱️ ${time.toFixed(2)}초</span>${engineIndicator}</div>`;
+            }
+
+            messageDiv.innerHTML = `
+                <div class="message-content">
+                    <div class="markdown-content">${formatMarkdown(content)}</div>
+                    ${timeStr}
+                </div>
+            `;
+
+            messagesDiv.appendChild(messageDiv);
+
+            // 스크롤을 맨 아래로
+            setTimeout(() => {
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                messageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }, 100);
+
+            return messageDiv;
+        }
+
+        function formatMarkdown(text) {
+            // 간단한 마크다운 파싱
+            text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            text = text.replace(/`(.+?)`/g, '<code>$1</code>');
+
+            // 줄바꿈 처리
+            text = text.replace(/\n\n/g, '</p><p>');
+            text = text.replace(/\n/g, '<br>');
+
+            // 불릿 포인트
+            text = text.replace(/^- (.+)$/gm, '<li>$1</li>');
+            text = text.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+
+            return '<p>' + text + '</p>';
+        }
+
+        async function sendMessage() {
+            const queryInput = document.getElementById('query');
+            const sendBtn = document.getElementById('sendBtn');
+
+            const query = queryInput.value.trim();
+            if (!query) {
+                alert('질문을 입력해주세요.');
+                return;
+            }
+
+            if (!selectedPdf) {
+                alert('📚 먼저 도서를 선택해주세요!');
+                return;
+            }
+
+            // 사용자 메시지 표시
+            addMessage('user', query);
+
+            // 입력 필드 즉시 초기화
+            queryInput.value = '';
+
+            // 버튼 비활성화
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = `<span class="loading"></span> vLLM 답변 생성 중...`;
+
+            // API 요청 데이터
+            const requestData = {
+                isbn: selectedPdf.isbn,
+                userid: 'test_user',
+                sessionid: sessionId,
+                query: query,
+                engine: 'vllm'  // vLLM 고정
+            };
+
+            try {
+                const startTime = performance.now();
+
+                // 스트리밍 API 호출
+                const response = await fetch('http://localhost:8080/api/chat/v1/response/stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                // 스트리밍 응답 처리
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let accumulatedText = '';
+                let messageDiv = null;
+                let contentDiv = null;
+
+                // 고유한 ID 생성
+                const uniqueId = 'streaming-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+
+                // 빈 메시지 생성
+                const messagesContainer = document.getElementById('messages');
+                messageDiv = document.createElement('div');
+                messageDiv.className = 'message assistant';
+                messageDiv.innerHTML = `
+                    <div class="message-content">
+                        <div class="markdown-content" id="${uniqueId}"></div>
+                    </div>
+                `;
+                messagesContainer.appendChild(messageDiv);
+                contentDiv = document.getElementById(uniqueId);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    // 디코딩
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const jsonStr = line.slice(6);
+                                const data = JSON.parse(jsonStr);
+
+                                if (data.chunk) {
+                                    accumulatedText += data.chunk;
+                                    contentDiv.innerHTML = formatMarkdown(accumulatedText);
+                                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                                }
+
+                                if (data.done) {
+                                    const endTime = performance.now();
+                                    const responseTime = (endTime - startTime) / 1000;
+
+                                    // 시간 정보 추가
+                                    const engineIndicator = '<span class="engine-indicator">vLLM</span>';
+                                    const timeDiv = document.createElement('div');
+                                    timeDiv.className = 'message-time';
+                                    timeDiv.innerHTML = `<span>⏱️ ${responseTime.toFixed(2)}초</span>${engineIndicator}`;
+                                    messageDiv.querySelector('.message-content').appendChild(timeDiv);
+
+                                    // 통계 업데이트
+                                    questionCount++;
+                                    totalTime += responseTime;
+                                    updateStats(responseTime);
+                                }
+                            } catch (e) {
+                                // JSON 파싱 오류 무시
+                            }
+                        }
+                    }
+                }
+
+            } catch (error) {
+                addMessage('system', `❌ 오류 발생: ${error.message}`);
+            } finally {
+                // 버튼 활성화
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '🚀 질문하기';
+            }
+        }
+
+        function updateStats(lastTime) {
+            document.getElementById('totalQuestions').textContent = questionCount;
+            document.getElementById('avgTime').textContent = (totalTime / questionCount).toFixed(1) + '초';
+            document.getElementById('lastTime').textContent = lastTime.toFixed(1) + '초';
+            document.getElementById('vllmAvg').textContent = (totalTime / questionCount).toFixed(1) + '초';
+        }
+
+        function setQuestion(question) {
+            document.getElementById('query').value = question;
+            document.getElementById('query').focus();
+        }
+
+        function clearChat() {
+            if (confirm('대화를 초기화하시겠습니까?')) {
+                document.getElementById('messages').innerHTML = `
+                    <div class="message system">
+                        <div class="message-content">
+                            💬 대화가 초기화되었습니다. 새로운 질문을 입력하세요.
+                        </div>
+                    </div>
+                `;
+                sessionId = 'test_' + Date.now();
+                questionCount = 0;
+                totalTime = 0;
+                document.getElementById('totalQuestions').textContent = '0';
+                document.getElementById('avgTime').textContent = '-';
+                document.getElementById('lastTime').textContent = '-';
+                document.getElementById('vllmAvg').textContent = '-';
+            }
+        }
+
+        // Enter 키로 전송
+        document.getElementById('query').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // 페이지 로드 시 PDF 목록 로드
+        window.addEventListener('DOMContentLoaded', function() {
+            loadPdfList();
+        });
+    </script>
+</body>
+</html>

@@ -128,6 +128,46 @@ python run.py
 - Swagger UI: http://localhost:7861/docs
 - Health Check: http://localhost:7861/health
 
+### 6. 웹 UI로 테스트
+
+```bash
+# vllm_chat.html 파일을 브라우저로 열기
+open vllm_chat.html   # macOS
+# 또는 브라우저에서 직접 파일 열기
+```
+
+**⚠️ 중요**: `vllm_chat.html` 파일 내부의 API URL을 본인의 서버 포트에 맞게 수정하세요:
+- 482줄: `http://localhost:8080/api/pdf/list` → `http://localhost:7861/api/pdf/list`
+- 654줄: `http://localhost:8080/api/chat/v1/response/stream` → `http://localhost:7861/api/chat/v1/response/stream`
+
+## 🎨 웹 UI 테스트
+
+프로젝트에 포함된 `vllm_chat.html` 파일로 브라우저에서 직접 테스트할 수 있습니다.
+
+### 설정 방법
+
+1. `vllm_chat.html` 파일을 텍스트 에디터로 엽니다.
+2. API 엔드포인트 URL을 본인의 서버 설정에 맞게 수정합니다:
+
+```javascript
+// 482줄 근처
+const response = await fetch('http://localhost:7861/api/pdf/list');
+
+// 654줄 근처
+const response = await fetch('http://localhost:7861/api/chat/v1/response/stream', {
+```
+
+3. 브라우저에서 `vllm_chat.html` 파일을 엽니다.
+4. 도서를 선택하고 질문을 입력하세요.
+
+### 주요 기능
+
+- 📚 PDF 도서 선택
+- 💬 실시간 스트리밍 답변
+- ⏱️ 응답 시간 측정
+- 📊 통계 대시보드
+- 💡 빠른 질문 버튼
+
 ## 📖 API 사용 예시
 
 ### PDF Q&A
